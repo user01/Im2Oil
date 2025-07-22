@@ -1,25 +1,23 @@
 import numpy as np
 
 
-
 def normalize(D):
     Vmin, Vmax = D.min(), D.max()
     if Vmax - Vmin > 1e-5:
-        D = (D-Vmin)/(Vmax-Vmin)
+        D = (D - Vmin) / (Vmax - Vmin)
     else:
         D = np.zeros_like(D)
     return D
 
 
-def normalize_threshold(D,min,max):
+def normalize_threshold(D, min, max):
     Vmin, Vmax = D.min(), D.max()
     if Vmax - Vmin > 1e-5:
-        D = (D-Vmin)/(Vmax-Vmin)
-        D = D*(max-min)+min
+        D = (D - Vmin) / (Vmax - Vmin)
+        D = D * (max - min) + min
     else:
         D = np.zeros_like(D)
     return D
-
 
 
 def initialization(n, D):
@@ -37,9 +35,9 @@ def initialization(n, D):
     while len(samples) < n:
         # X = np.random.randint(0, D.shape[1], 10*n)
         # Y = np.random.randint(0, D.shape[0], 10*n)
-        X = np.random.uniform(0, D.shape[1], 10*n)
-        Y = np.random.uniform(0, D.shape[0], 10*n)
-        P = np.random.uniform(0, 1, 10*n)
+        X = np.random.uniform(0, D.shape[1], 10 * n)
+        Y = np.random.uniform(0, D.shape[0], 10 * n)
+        P = np.random.uniform(0, 1, 10 * n)
         index = 0
         while index < len(X) and len(samples) < n:
             x, y = X[index], Y[index]

@@ -5,13 +5,13 @@ input_path = "./mask-1.png"
 output_path = "./"
 
 brush = cv2.imread(input_path, cv2.IMREAD_GRAYSCALE)
-(h,w) = brush.shape
+(h, w) = brush.shape
 
 
-brush[brush>=125] = 255
-brush[brush<125] = 0
-cv2.imshow('mask', brush)
-cv2.waitKey(0) 
+brush[brush >= 125] = 255
+brush[brush < 125] = 0
+cv2.imshow("mask", brush)
+cv2.waitKey(0)
 cv2.imwrite(output_path + "/mask-1.png", brush)
 
 
@@ -28,10 +28,8 @@ cv2.imwrite(output_path + "/mask-1.png", brush)
 # cv2.waitKey(0)
 
 
-
-
 # ret2,th2 = cv2.threshold(img,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
 # img = np.uint8(img*th2.astype("float32")/255)
 # cv2.imwrite(output_path + "/brush.png", img)
 # cv2.imshow('up', img)
-# cv2.waitKey(0) 
+# cv2.waitKey(0)

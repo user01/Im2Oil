@@ -204,3 +204,4 @@ __marimo__/
 
 output/
 input/
+.api_cache/

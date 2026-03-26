@@ -1,4 +1,4 @@
-import math, tqdm
+import json, math, os, tqdm
 from Line_Tools import *
 from simulate_RGB import *
 from drawpatch import *
@@ -94,14 +94,25 @@ def Render_Stroke(
     BORDERCOPY,
     FREQ,
     save=True,
+    save_strokes=False,
+    stroke_index_offset=0,
+    canvas=None,
+    mask=None,
 ):
     (h0, w0) = img_gray.shape
-    Canvas = Gassian_HSV(
-        (h0 * SSAA + 2 * max_length * SSAA, w0 * SSAA + 2 * max_length * SSAA, 3)
-    )  # padding max_length
-    Mask = np.zeros(
-        (h0 * SSAA + 2 * max_length * SSAA, w0 * SSAA + 2 * max_length * SSAA)
-    )
+    if canvas is not None:
+        Canvas = canvas
+    else:
+        Canvas = Gassian_HSV(
+            (h0 * SSAA + 2 * max_length * SSAA, w0 * SSAA + 2 * max_length * SSAA, 3)
+        )  # padding max_length
+    if mask is not None:
+        Mask = mask
+    else:
+        Mask = np.zeros(
+            (h0 * SSAA + 2 * max_length * SSAA, w0 * SSAA + 2 * max_length * SSAA)
+        )
+    stroke_metadata = []
     for step in tqdm.tqdm(range(len(patch_sequence))):
         patch_temp = patch_sequence[step]
         w1 = patch_temp["w1"]
@@ -153,9 +164,38 @@ def Render_Stroke(
         rotate_alpha = rotate_alpha[:, :, np.newaxis]
         rotate_stroke = rotate_stroke.astype("float32")
 
-        # white = Gassian_HSV(rotate_stroke.shape) # padding
-        # white = np.uint8((1-rotate_alpha)*white + rotate_alpha*rotate_stroke)
-        # cv2.imwrite(output_path + "/stroke/{0:05d}.png".format(step), cv2.cvtColor(white, cv2.COLOR_HSV2BGR))
+        if save_strokes:
+            global_idx = stroke_index_offset + step
+            stroke_bgr = cv2.cvtColor(
+                np.uint8(np.clip(rotate_stroke, 0, 255)), cv2.COLOR_HSV2BGR
+            )
+            alpha_channel = np.uint8(mask * 255)
+            stroke_bgra = cv2.merge([
+                stroke_bgr[:, :, 0],
+                stroke_bgr[:, :, 1],
+                stroke_bgr[:, :, 2],
+                alpha_channel,
+            ])
+            cv2.imwrite(
+                output_path + "/stroke/{0:05d}.png".format(global_idx),
+                stroke_bgra,
+            )
+            # Placement relative to the final cropped output
+            crop_offset = max_length * SSAA + BORDERCOPY * SSAA
+            stroke_metadata.append(
+                {
+                    "index": global_idx,
+                    "x": int(X - rotate_ww - crop_offset),
+                    "y": int(Y - rotate_hh - crop_offset),
+                    "width": int(rotate_w),
+                    "height": int(rotate_h),
+                    "angle": float(angle_ETF),
+                    "hsv": [int(hsv[0]), int(hsv[1]), int(hsv[2])],
+                    "importance": float(patch_temp.get("importance", 0)),
+                    "grayscale": int(patch_temp.get("grayscale", 0)),
+                }
+            )
+
         Canvas[
             Y - rotate_hh : Y - rotate_hh + rotate_h,
             X - rotate_ww : X - rotate_ww + rotate_w,
@@ -197,4 +237,4 @@ def Render_Stroke(
     Mask[Mask > 0] = 1
     # cv2.imshow('mask', np.uint8(Mask*255))
     # cv2.waitKey(0)
-    return Canvas, Mask  # hsv
+    return Canvas, Mask, stroke_metadata  # hsv

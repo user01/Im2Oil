@@ -1,3 +1,5 @@
+import json
+
 import numpy as np
 import cv2, random, time, os, argparse
 
@@ -71,6 +73,12 @@ if __name__ == "__main__":
         default=default["stroke_order_type"],
         help="0 for default size order, 1 for random order",
     )
+    parser.add_argument(
+        "--save-strokes",
+        action="store_true",
+        default=False,
+        help="Save individual stroke PNGs and metadata JSON for the HTML viewer",
+    )
     args = parser.parse_args()
 
     # auto parameters (before SSAA)
@@ -97,6 +105,8 @@ if __name__ == "__main__":
             os.makedirs(output_path + "/anchor")
             os.makedirs(output_path + "/stroke")
             os.makedirs(output_path + "/process")
+        elif args.save_strokes:
+            os.makedirs(output_path + "/stroke", exist_ok=True)
 
     ######## K-means ########
     np.random.seed(args.s)
@@ -184,7 +194,7 @@ if __name__ == "__main__":
             cv2.cvtColor(wihte, cv2.COLOR_HSV2BGR),
         )
 
-        Canvas, Mask = Render_Stroke(
+        Canvas, Mask, stroke_metadata = Render_Stroke(
             brush,
             patch_sequence,
             input_gray,
@@ -194,7 +204,9 @@ if __name__ == "__main__":
             BORDERCOPY=padding,
             FREQ=freq,
             save=True,
+            save_strokes=args.save_strokes,
         )
+        all_stroke_metadata = list(stroke_metadata)
         print("Stoke Rendering time", int(time.time() - time_start), "seconds")
         print("Stoke number", len(patch_sequence))
 
@@ -293,7 +305,7 @@ if __name__ == "__main__":
                 if args.order == 0:
                     quickSort(pad_sequence, 0, len(pad_sequence) - 1)
                 ### Pad ###
-                pad_canvas, pad_mask = Render_Stroke(
+                pad_canvas, pad_mask, pad_stroke_metadata = Render_Stroke(
                     brush,
                     pad_sequence,
                     input_gray,
@@ -303,6 +315,8 @@ if __name__ == "__main__":
                     BORDERCOPY=padding,
                     FREQ=freq,
                     save=False,
+                    save_strokes=args.save_strokes,
+                    stroke_index_offset=len(all_stroke_metadata),
                 )
                 pad_canvas_cut = pad_canvas[
                     max_length * SSAA : -max_length * SSAA,
@@ -341,9 +355,29 @@ if __name__ == "__main__":
                 Oil_drawing = cv2.cvtColor(Oil_drawing, cv2.COLOR_HSV2BGR)
                 cv2.imwrite(output_path + "/Oil_drawing.png", Oil_drawing)
 
+                if args.save_strokes and pad_stroke_metadata:
+                    all_stroke_metadata.extend(pad_stroke_metadata)
+
                 mask += pad_mask
                 mask[mask > 0] = 1
                 # result[:,:,2] = np.uint8(np.around(np.clip(result[:,:,2].astype("float32")/0.85,0,255)))
 
             min_length += ratio
             min_width += 1
+
+    ########### Save stroke metadata ###########
+    if args.save_strokes and all_stroke_metadata:
+        input_bgr_raw = cv2.imread(args.f, cv2.IMREAD_COLOR)
+        (img_h, img_w) = input_bgr_raw.shape[:2]
+        strokes_json = {
+            "image_width": img_w,
+            "image_height": img_h,
+            "ssaa": SSAA,
+            "padding": padding,
+            "max_length": max_length,
+            "total_strokes": len(all_stroke_metadata),
+            "strokes": all_stroke_metadata,
+        }
+        with open(output_path + "/strokes.json", "w") as f:
+            json.dump(strokes_json, f)
+        print("Saved", len(all_stroke_metadata), "stroke images and metadata")
